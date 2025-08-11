@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JS Project Dashboard — Tasks 1-10</title>
+
+    <!-- keep original external libs (EmailJS & Google Maps as in your design) -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAY4e5M84UjHwLQNksAieYg-sqePUYCIBs&libraries=places,routes&callback=initMaps"></script>
+
+    <style>
+        /* Original theme / design preserved from your provided CSS */
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            margin: 0;
+        }
+
+        .dashboard-header { text-align: center; margin-bottom: 2rem; }
+        .dashboard-header h1 { font-size: 2.2rem; color: #ffffff; font-weight: 700; margin: 0; }
+        .dashboard-header p { color: #bdbdbd; margin: 0.25rem 0 0; }
+
+        .dashboard-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .module { position: relative; display: flex; background: linear-gradient( to bottom right, #7e7e7e, #363636 ); border-radius: 16px; padding: 2px; overflow: hidden; width: 24rem; }
+        .module::after { position: absolute; content: ""; top: -10px; left: -10px; background: radial-gradient( ellipse at center, #ffffff, rgba(255,255,255,0.3), rgba(255,255,255,0.1), transparent ); width: 40px; height: 40px; filter: blur(1px); opacity: 0.45; }
+
+        .module-content { display: flex; flex-direction: column; gap: 1rem; background-color: rgba(15,15,15,0.85); backdrop-filter: blur(5px); border-radius: 15px; width: 100%; padding: 1.25rem; }
+        .module-header .title { font-size: 1.15rem; color: #ffffff; font-weight: 600; }
+        .module-header .description { font-size: 0.78rem; color: #b0b0b0; margin-top: 0.3rem; }
+        .module-body { display:flex; flex-direction:column; gap:0.75rem; }
+
+        .text-input { background-color: rgba(0,0,0,0.25); border-radius: 10px; border: 1px solid #363636; width: 100%; color: #ffffff; font-family: sans-serif; font-size: 14px; padding: 10px; outline: none; box-sizing: border-box; }
+        .text-input:focus { border-color: #777; }
+
+        .action-button { display:flex; justify-content:center; align-items:center; padding: 0 12px; background-image: linear-gradient(to top,#292929,#555,#292929); border-radius:10px; box-shadow: inset 0 4px 2px -2px rgba(255,255,255,0.25); cursor:pointer; border:none; color:#f3f6fd; font-size:0.9rem; height:40px; }
+        .action-button:hover { filter:brightness(1.15); }
+        .action-button:disabled { background-image:linear-gradient(to top,#292929,#333,#292929); color:#888; cursor:not-allowed; }
+
+        .media-container { width:100%; height:180px; background:#000; border-radius:10px; border:1px solid #363636; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .media-container video, .media-container img, .media-container .map { width:100%; height:100%; object-fit:cover; }
+
+        .output-area { background: rgba(0,0,0,0.2); padding:0.6rem; border-radius:8px; font-size:0.8rem; color:#b0b0b0; min-height:44px; border:1px solid #363636; word-wrap:break-word; }
+        .warning-text { color:#ffcc00; font-weight:700; }
+
+        /* small helpers */
+        pre { background: rgba(255,255,255,0.03); padding:8px; border-radius:8px; color:#dcdcdc; overflow:auto; font-size:0.78rem; }
+        .small { font-size:0.78rem; color:#9ea7b0; }
+
+        /* drag item style */
+        .drag-item { width:100%; height:90px; border-radius:8px; background:linear-gradient(180deg,#223344,#17202a); display:flex; align-items:center; justify-content:center; cursor:grab; }
+
+        @media (max-width: 880px) { .module { width: 100%; } }
+    </style>
+</head>
+<body>
+    <header class="dashboard-header">
+        <h1>JS Project Dashboard</h1>
+        <p>An interactive single-file showcase for Tasks 1–10 — design inspired by your original layout.</p>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- Task 1: Mic -> Speech-to-Text -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 1 — Mic → Speech-to-Text</div>
+                    <div class="description">Use Web Speech API to capture voice and convert to text.</div>
+                </div>
+                <div class="module-body">
+                    <button id="start-speech" class="action-button">Start Listening</button>
+                    <button id="stop-speech" class="action-button">Stop</button>
+                    <div id="speech-output" class="output-area">No transcript yet.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task 2: Camera & Click Photo -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 2 — Camera & Capture Photo</div>
+                    <div class="description">Access webcam, snap a photo and preview it.</div>
+                </div>
+                <div class="module-body">
+                    <div class="media-container">
+                        <video id="cam-video" autoplay playsinline style="display:none"></video>
+                        <img id="cam-photo" alt="photo" style="display:none; width:100%; height:100%; object-fit:cover;" />
+                    </div>
+                    <canvas id="cam-canvas" style="display:none"></canvas>
+                    <button id="cam-start" class="action-button">Start Camera</button>
+                    <button id="cam-capture" class="action-button" disabled>Capture Photo</button>
+                </div>
+                <div id="cam-output" class="output-area">Status here.</div>
+            </div>
+        </div>
+
+        <!-- Task 3: Live stream camera -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 3 — Live Camera Stream</div>
+                    <div class="description">Show a continuous camera stream in a video element.</div>
+                </div>
+                <div class="module-body">
+                    <div class="media-container">
+                        <video id="live-stream" autoplay playsinline></video>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button id="start-live" class="action-button">Start Live</button>
+                        <button id="stop-live" class="action-button">Stop Live</button>
+                    </div>
+                </div>
+                <div id="live-output" class="output-area">Stream inactive.</div>
+            </div>
+        </div>
+
+        <!-- Task 4: Record video & mock Instagram upload -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 4 — Record Video & Mock Instagram Post</div>
+                    <div class="description">Record with MediaRecorder and simulate posting (real Instagram requires server-side OAuth).</div>
+                </div>
+                <div class="module-body">
+                    <div class="media-container">
+                        <video id="rec-preview" autoplay playsinline></video>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button id="rec-start" class="action-button">Start Recording</button>
+                        <button id="rec-stop" class="action-button" disabled>Stop Recording</button>
+                    </div>
+                    <button id="mock-instagram" class="action-button" disabled>Mock Post to Instagram</button>
+                </div>
+                <div id="rec-output" class="output-area">Recording idle.</div>
+            </div>
+        </div>
+
+        <!-- Task 5: Mock Google Search & aggregated links -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 5 — Mock Search Engine</div>
+                    <div class="description">Demonstration: search a name and show aggregated links (real scraping needs server).</div>
+                </div>
+                <div class="module-body">
+                    <input id="search-name" class="text-input" placeholder="Enter name to search" />
+                    <button id="search-btn" class="action-button">Search (Mock)</button>
+                    <div id="search-results" class="output-area">No results yet.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task 6: Google Apps Script practice snippet -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 6 — Google Apps Script (Example)</div>
+                    <div class="description">Example Apps Script snippet you can paste into script.google.com and run.</div>
+                </div>
+                <div class="module-body">
+                    <pre>// Simple Apps Script
+function doGet() {
+  return ContentService.createTextOutput('Hello from Apps Script');
+}
+
+// Example: append row to sheet
+function addRow(name, email){
+  const ss = SpreadsheetApp.openById('YOUR_SHEET_ID');
+  const sh = ss.getActiveSheet();
+  sh.appendRow([new Date(), name, email]);
+}
+</pre>
+                    <div class="small">Tip: modify addRow to accept web requests with doPost and deploy as web app.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task 7: Drag and drop division -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 7 — Drag & Drop Division</div>
+                    <div class="description">Drag the tile and drop anywhere inside the page.</div>
+                </div>
+                <div class="module-body">
+                    <div id="drag-item" class="drag-item" draggable="true">Drag me</div>
+                    <div class="small">Tip: try dragging this element and dropping it anywhere on the page.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task 8: Connect to ChatGPT (text response) -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 8 — ChatGPT Text (Requires API Key)</div>
+                    <div class="description">Paste your OpenAI API key to call the API from the browser (use locally only).</div>
+                </div>
+                <div class="module-body">
+                    <input id="openai-key" class="text-input" placeholder="OpenAI API Key (sk-...)" />
+                    <textarea id="chat-prompt" class="text-input" rows="3" placeholder="Ask something..."></textarea>
+                    <button id="send-chat" class="action-button">Send to ChatGPT</button>
+                    <div id="chat-output" class="output-area">No response yet.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task 9: Mic input -> ChatGPT -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 9 — Use Mic as Prompt to ChatGPT</div>
+                    <div class="description">Start speech capture and forward the transcript to ChatGPT (requires key).</div>
+                </div>
+                <div class="module-body">
+                    <button id="voice-to-chat" class="action-button">Start Voice → Chat</button>
+                    <div id="voice-chat-output" class="output-area">No response.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task 10: Generate Image using ChatGPT prompt -->
+        <div class="module">
+            <div class="module-content">
+                <div class="module-header">
+                    <div class="title">Task 10 — Image Generation (Requires API Key)</div>
+                    <div class="description">Provide prompt and request an image generation (may require billing on provider).</div>
+                </div>
+                <div class="module-body">
+                    <textarea id="image-prompt" class="text-input" rows="3" placeholder="Describe the image you want..."></textarea>
+                    <button id="gen-image" class="action-button">Generate Image</button>
+                    <div id="image-output" class="output-area">Image will appear here.</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+<script>
+// ========== Global helpers & state ===========
+const $ = id => document.getElementById(id);
+let cameraStream = null;
+let liveStream = null;
+let recStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let speechRec = null;
+
+// ========== Task 1: Speech -> Text ==========
+const startSpeechBtn = $('start-speech');
+const stopSpeechBtn = $('stop-speech');
+const speechOutput = $('speech-output');
+
+startSpeechBtn.addEventListener('click', ()=>{
+  if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)){
+    speechOutput.textContent = 'SpeechRecognition API not supported in this browser.'; return;
+  }
+  const Recognizer = window.SpeechRecognition || window.webkitSpeechRecognition;
+  speechRec = new Recognizer();
+  speechRec.lang = 'en-US';
+  speechRec.interimResults = true;
+  speechRec.onresult = (ev)=>{
+    const txt = Array.from(ev.results).map(r=>r[0].transcript).join('');
+    speechOutput.textContent = txt;
+  };
+  speechRec.onerror = e => speechOutput.textContent = 'Error: '+ e.message;
+  speechRec.start();
+  speechOutput.textContent = 'Listening...';
+});
+stopSpeechBtn.addEventListener('click', ()=>{ if(speechRec){ speechRec.stop(); speechOutput.textContent = 'Stopped.'; }});
+
+// ========== Task 2: Camera Capture ==========
+const camVideo = $('cam-video'), camPhoto = $('cam-photo'), camCanvas = $('cam-canvas');
+const camStart = $('cam-start'), camCapture = $('cam-capture'), camOutput = $('cam-output');
+
+camStart.addEventListener('click', async ()=>{
+  try{
+    if (cameraStream) cameraStream.getTracks().forEach(t=>t.stop());
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    camVideo.srcObject = cameraStream; camVideo.style.display='block'; camPhoto.style.display='none'; camCapture.disabled=false; camOutput.textContent='Camera started.';
+  }catch(err){ camOutput.textContent = 'Camera error: ' + err.message; }
+});
+camCapture.addEventListener('click', ()=>{
+  camCanvas.width = camVideo.videoWidth; camCanvas.height = camVideo.videoHeight;
+  camCanvas.getContext('2d').drawImage(camVideo,0,0,camCanvas.width,camCanvas.height);
+  const data = camCanvas.toDataURL('image/jpeg'); camPhoto.src = data; camPhoto.style.display='block'; camVideo.style.display='none';
+  cameraStream.getTracks().forEach(t=>t.stop()); camCapture.disabled=true; camOutput.textContent='Photo captured.';
+});
+
+// ========== Task 3: Live Stream ==========
+const liveVid = $('live-stream'), startLive = $('start-live'), stopLive = $('stop-live'), liveOutput = $('live-output');
+startLive.addEventListener('click', async ()=>{
+  try{ liveStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false }); liveVid.srcObject = liveStream; liveOutput.textContent='Live streaming.'; }
+  catch(e){ liveOutput.textContent = 'Error: '+e.message; }
+});
+stopLive.addEventListener('click', ()=>{ if(liveStream){ liveStream.getTracks().forEach(t=>t.stop()); liveVid.srcObject=null; liveOutput.textContent='Stopped.'; }});
+
+// ========== Task 4: Record & Mock Instagram ==========
+const recPreview = $('rec-preview'), recStart = $('rec-start'), recStop = $('rec-stop'), recOutput = $('rec-output'), mockIG = $('mock-instagram');
+recStart.addEventListener('click', async ()=>{
+  try{
+    if (recStream) recStream.getTracks().forEach(t=>t.stop());
+    recStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+    recPreview.srcObject = recStream; recordedChunks=[]; mediaRecorder = new MediaRecorder(recStream, { mimeType: 'video/webm' });
+    mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = ()=>{ recOutput.textContent='Recording stopped. Ready to mock upload.'; mockIG.disabled=false; };
+    mediaRecorder.start(); recStart.disabled=true; recStop.disabled=false; recOutput.textContent='Recording...';
+  }catch(e){ recOutput.textContent='Recording error: '+e.message; }
+});
+recStop.addEventListener('click', ()=>{ if(mediaRecorder && mediaRecorder.state!=='inactive'){ mediaRecorder.stop(); recStart.disabled=false; recStop.disabled=true; }});
+mockIG.addEventListener('click', ()=>{
+  // Simulate an upload flow (Instagram requires server-side OAuth)
+  mockIG.disabled=true; recOutput.textContent='Mock upload started...';
+  setTimeout(()=>{ recOutput.textContent='Mock upload complete — (simulation). Real Instagram posting requires server-side OAuth & Graph API.'; mockIG.disabled=false; }, 2000);
+});
+
+// ========== Task 5: Mock Google Search ==========
+const searchBtn = $('search-btn'), searchName = $('search-name'), searchResults = $('search-results');
+searchBtn.addEventListener('click', ()=>{
+  const q = (searchName.value||'').trim(); if(!q){ searchResults.textContent='Enter a name to search.'; return; }
+  // Provide simulated aggregated links
+  const sample = [
+    `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+    `https://en.wikipedia.org/wiki/${encodeURIComponent(q)}`,
+    `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(q)}`,
+    `https://news.google.com/search?q=${encodeURIComponent(q)}`
+  ];
+  searchResults.innerHTML = sample.map(u=>`<div><a href="${u}" target="_blank">${u}</a></div>`).join('');
+});
+
+// ========== Task 7: Drag & Drop ==========
+const dragItem = $('drag-item');
+dragItem.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain','drag-item'); });
+document.body.addEventListener('dragover', e=>e.preventDefault());
+document.body.addEventListener('drop', e=>{ e.preventDefault(); try{ document.body.appendChild(dragItem); dragItem.style.position='absolute'; dragItem.style.left=(e.clientX-75)+'px'; dragItem.style.top=(e.clientY-45)+'px'; }catch(err){} });
+
+// ========== Task 8: ChatGPT Text ==========
+const openaiKeyInput = $('openai-key'), chatPrompt = $('chat-prompt'), sendChat = $('send-chat'), chatOutput = $('chat-output');
+sendChat.addEventListener('click', async ()=>{
+  const key = openaiKeyInput.value.trim(); const prompt = chatPrompt.value.trim();
+  if(!key || !prompt){ chatOutput.textContent='Provide API key and prompt (local use only).'; return; }
+  chatOutput.textContent='Requesting...';
+  try{
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
+      body: JSON.stringify({ model:'gpt-3.5-turbo', messages:[{role:'user', content:prompt}], max_tokens: 500 })
+    });
+    const data = await res.json();
+    chatOutput.textContent = data?.choices?.[0]?.message?.content || JSON.stringify(data);
+  }catch(e){ chatOutput.textContent='Chat request failed: '+e.message; }
+});
+
+// ========== Task 9: Mic -> ChatGPT ==========
+const voiceToChatBtn = $('voice-to-chat'), voiceChatOutput = $('voice-chat-output');
+voiceToChatBtn.addEventListener('click', ()=>{
+  if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)){
+    voiceChatOutput.textContent = 'SpeechRecognition not supported.'; return; }
+  const Recognizer = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const r = new Recognizer(); r.lang='en-US'; r.interimResults=false;
+  r.onresult = async (ev)=>{
+    const transcript = ev.results[0][0].transcript; voiceChatOutput.textContent = 'Heard: '+transcript + '\nSending to ChatGPT...';
+    const key = openaiKeyInput.value.trim(); if(!key){ voiceChatOutput.textContent += '\nProvide OpenAI key above.'; return; }
+    try{
+      const res = await fetch('https://api.openai.com/v1/chat/completions', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+key }, body: JSON.stringify({ model:'gpt-3.5-turbo', messages:[{role:'user', content:transcript}], max_tokens:300 }) });
+      const d = await res.json(); voiceChatOutput.textContent = 'ChatGPT: ' + (d?.choices?.[0]?.message?.content || JSON.stringify(d));
+    }catch(e){ voiceChatOutput.textContent = 'ChatGPT call failed: '+e.message; }
+  };
+  r.onerror = e=>{ voiceChatOutput.textContent = 'Speech error: '+e.message; };
+  r.start();
+});
+
+// ========== Task 10: Image Generation ==========
+const imagePrompt = $('image-prompt'), genImageBtn = $('gen-image'), imageOutput = $('image-output');
+genImageBtn.addEventListener('click', async ()=>{
+  const key = openaiKeyInput.value.trim(); const prompt = imagePrompt.value.trim();
+  if(!key || !prompt){ imageOutput.textContent='Provide API key and prompt.'; return; }
+  imageOutput.textContent='Generating...';
+  try{
+    // Using legacy images endpoint; depending on provider this may vary
+    const res = await fetch('https://api.openai.com/v1/images/generations', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
+      body: JSON.stringify({ prompt: prompt, n:1, size:'512x512' })
+    });
+    const d = await res.json();
+    const url = d?.data?.[0]?.url;
+    if(url){ imageOutput.innerHTML = `<img src="${url}" style="width:100%; border-radius:8px;" />`; }
+    else { imageOutput.textContent = JSON.stringify(d); }
+  }catch(e){ imageOutput.textContent = 'Image request failed: '+e.message; }
+});
+
+// ========== Google Maps init (kept from original design) ==========
+let liveMap, liveMarker; let currentUserPosition = { lat:26.9124, lng:75.7873 };
+function initMaps(){
+  try{ liveMap = new google.maps.Map(document.createElement('div')); }catch(e){}
+}
+
+// ========== Safety notes in console ==========
+console.log('Loaded dashboard. Note: Instagram posting and Google scraping are mocked. ChatGPT/OpenAI calls require your API key and may incur charges.');
+</script>
+</body>
+</html>
